@@ -116,10 +116,10 @@ export default function PartidosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
         <a href="/dashboard" className="text-2xl font-bold text-green-600">PadelMatch</a>
         <div className="flex items-center gap-6">
-          <a href="/canchas" className="text-gray-600 hover:text-gray-900 font-medium">Canchas</a>
+          <a href="/canchas" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Canchas</a>
           <a href="/partidos" className="text-green-600 font-semibold">Partidos</a>
         </div>
       </nav>

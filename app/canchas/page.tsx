@@ -42,40 +42,44 @@ export default function CanchasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
         <a href="/dashboard" className="text-2xl font-bold text-green-600">PadelMatch</a>
         <div className="flex items-center gap-6">
           <a href="/canchas" className="text-green-600 font-semibold">Canchas</a>
-          <a href="/partidos" className="text-gray-600 hover:text-gray-900 font-medium">Partidos</a>
+          <a href="/partidos" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Partidos</a>
         </div>
       </nav>
 
       <main className="max-w-4xl mx-auto px-6 py-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Reservar cancha</h1>
-        <p className="text-gray-500 mb-8">Elegí tu club y horario</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">Reservar cancha</h1>
+        <p className="text-gray-400 mb-8">Elegí tu club y horario</p>
 
         <div className="flex flex-col gap-6">
           {clubes.map(club => (
-            <div key={club.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50">
-                <h2 className="text-xl font-bold text-gray-900">{club.nombre}</h2>
-                <p className="text-gray-400 text-sm mt-1">📍 {club.direccion}</p>
+            <div key={club.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-r from-green-600 to-green-500 px-6 py-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{club.nombre}</h2>
+                    <p className="text-green-200 text-sm mt-1">📍 {club.direccion}</p>
+                  </div>
+                  <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mt-1">
+                    {club.canchas?.length} canchas
+                  </span>
+                </div>
               </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
                 {club.canchas?.map(cancha => (
                   <a
                     key={cancha.id}
                     href={`/canchas/${cancha.id}`}
-                    className="border border-gray-100 rounded-xl p-4 hover:border-green-300 hover:bg-green-50 transition-colors group"
+                    className="flex items-center justify-between border border-gray-100 rounded-xl px-5 py-4 hover:border-green-300 hover:bg-green-50 transition-all group"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900 group-hover:text-green-700">{cancha.nombre}</p>
-                        <p className="text-green-600 font-bold mt-1">${cancha.precio_hora} <span className="text-gray-400 font-normal text-sm">/ hora</span></p>
-                      </div>
-                      <span className="text-2xl">🎾</span>
+                    <div>
+                      <p className="font-semibold text-gray-900 group-hover:text-green-700">{cancha.nombre}</p>
+                      <p className="text-green-600 font-bold text-sm mt-0.5">${cancha.precio_hora} <span className="text-gray-400 font-normal">/ 90 min</span></p>
                     </div>
-                    <p className="text-sm text-green-600 font-medium mt-3 group-hover:underline">Ver horarios →</p>
+                    <span className="text-gray-300 group-hover:text-green-500 text-xl transition-colors">→</span>
                   </a>
                 ))}
               </div>

@@ -42,13 +42,14 @@ export default function PartidosPage() {
       await supabase.rpc('cancelar_partidos_incompletos')
 
       const hoy = new Date().toISOString().split('T')[0]
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('partidos')
         .select('id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id, canchas(nombre, clubes(nombre)), profiles(nombre)')
         .gte('fecha', hoy)
         .eq('estado', 'activo')
         .lt('jugadores_confirmados', 4)
         .order('fecha', { ascending: true })
+      console.log('PARTIDOS DATA:', data, 'ERROR:', error)
 
       // Mis partidos (para mostrar botón cancelar)
       const { data: misP } = await supabase

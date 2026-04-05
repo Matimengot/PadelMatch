@@ -38,7 +38,7 @@ function formatFecha(fecha: string, hora: string) {
 function SlotJugador({ jugador, vacio, onClick }: {
   jugador?: { nombre: string; nivel: number }
   vacio?: boolean
-  onClick?: () => void
+  onClick?: (e?: React.MouseEvent) => void
 }) {
   if (vacio) {
     return (
@@ -72,9 +72,12 @@ export default function PartidosPage() {
   const [partidos, setPartidos] = useState<Partido[]>([])
   const [misPartidos, setMisPartidos] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
-  const [uniendose, setUniendose] = useState<string | null>(null)
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+
+  function irADetalle(partidoId: string) {
+    router.push(`/partidos/${partidoId}`)
+  }
 
   useEffect(() => {
     async function load() {
@@ -109,18 +112,6 @@ export default function PartidosPage() {
     }
     load()
   }, [router])
-
-  async function handleUnirse(partido: Partido) {
-    if (!userId) return
-    setUniendose(partido.id)
-    await supabase.from('partido_jugadores').insert({ partido_id: partido.id, jugador_id: userId })
-    await supabase.from('partidos').update({ jugadores_confirmados: partido.jugadores_confirmados + 1 }).eq('id', partido.id)
-    setPartidos(prev => prev.map(p =>
-      p.id === partido.id ? { ...p, jugadores_confirmados: p.jugadores_confirmados + 1 } : p
-    ).filter(p => p.jugadores_confirmados < 4))
-    setMisPartidos(prev => new Set([...prev, partido.id]))
-    setUniendose(null)
-  }
 
   async function handleCancelar(partido: Partido) {
     const horas = horasHastaPartido(partido.fecha, partido.hora_inicio)
@@ -189,7 +180,11 @@ export default function PartidosPage() {
               const libres = 4 - partido.jugadores_confirmados
 
               return (
-                <div key={partido.id} className={`bg-white rounded-2xl shadow-sm border p-6 ${yaUnido ? 'border-green-200' : 'border-gray-100'}`}>
+                <div
+                  key={partido.id}
+                  onClick={() => irADetalle(partido.id)}
+                  className={`bg-white rounded-2xl shadow-sm border p-6 cursor-pointer hover:shadow-md transition-shadow ${yaUnido ? 'border-green-200' : 'border-gray-100'}`}
+                >
                   {/* Fecha y tipo */}
                   <div className="flex items-center justify-between mb-5">
                     <div>
@@ -216,7 +211,7 @@ export default function PartidosPage() {
                         <SlotJugador
                           key={`libre-${i}`}
                           vacio
-                          onClick={!yaUnido ? () => handleUnirse(partido) : undefined}
+                          onClick={!yaUnido ? (e?: React.MouseEvent) => { e?.stopPropagation(); irADetalle(partido.id) } : undefined}
                         />
                       ))
                     ].slice(0, 4)
@@ -246,7 +241,7 @@ export default function PartidosPage() {
                       <p className="text-green-600 font-bold">$1.900</p>
                       {yaUnido ? (
                         <button
-                          onClick={() => handleCancelar(partido)}
+                          onClick={e => { e.stopPropagation(); handleCancelar(partido) }}
                           disabled={cancelando === partido.id || !puedeCancel}
                           className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors ${
                             puedeCancel
@@ -258,11 +253,10 @@ export default function PartidosPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleUnirse(partido)}
-                          disabled={uniendose === partido.id}
-                          className="bg-green-600 text-white font-semibold px-5 py-2 rounded-full text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                          onClick={e => { e.stopPropagation(); irADetalle(partido.id) }}
+                          className="bg-green-600 text-white font-semibold px-5 py-2 rounded-full text-sm hover:bg-green-700 transition-colors"
                         >
-                          {uniendose === partido.id ? 'Uniéndose...' : 'Unirse'}
+                          Ver partido
                         </button>
                       )}
                     </div>

@@ -209,18 +209,32 @@ export default function PartidosPage() {
                   </div>
 
                   {/* Slots jugadores */}
-                  <div className="flex justify-around mb-6">
-                    {jugadores.map((j, i) => (
-                      <SlotJugador key={i} jugador={j.profiles} />
-                    ))}
-                    {Array.from({ length: libres }).map((_, i) => (
-                      <SlotJugador
-                        key={`libre-${i}`}
-                        vacio
-                        onClick={!yaUnido ? () => handleUnirse(partido) : undefined}
-                      />
-                    ))}
-                  </div>
+                  {(() => {
+                    const slots = [
+                      ...jugadores.slice(0, 4).map((j, i) => <SlotJugador key={i} jugador={j.profiles} />),
+                      ...Array.from({ length: Math.max(0, 4 - jugadores.length) }).map((_, i) => (
+                        <SlotJugador
+                          key={`libre-${i}`}
+                          vacio
+                          onClick={!yaUnido ? () => handleUnirse(partido) : undefined}
+                        />
+                      ))
+                    ].slice(0, 4)
+
+                    return (
+                      <div className="flex items-center justify-around mb-6">
+                        {slots[0]}
+                        {slots[1]}
+                        <div className="flex flex-col items-center gap-1 px-2">
+                          <div className="h-10 w-px bg-gray-200" />
+                          <span className="text-xs text-gray-300 font-medium">VS</span>
+                          <div className="h-10 w-px bg-gray-200" />
+                        </div>
+                        {slots[2]}
+                        {slots[3]}
+                      </div>
+                    )
+                  })()}
 
                   {/* Club + botón */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-50">

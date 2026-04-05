@@ -3,6 +3,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
+const CLUB_FOTOS: Record<string, string> = {
+  'Boss Padel Carrasco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Outdoor_padel_court_Mariestad.jpg/800px-Outdoor_padel_court_Mariestad.jpg',
+  'Indoor Padel Malvin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Mobile_padel_court_in_Stockholm_2021_-_01.jpg/800px-Mobile_padel_court_in_Stockholm_2021_-_01.jpg',
+  'Indoor Padel Nuevo Centro': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Bagartorp_Padelbana_1000_Solnabilder.jpg/800px-Bagartorp_Padelbana_1000_Solnabilder.jpg',
+  'World Padel Center': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Kindertag%2C_Leichtathletikzentrum%2C_Padel_Courts%2C_2025_Margit-sziget.jpg/800px-Kindertag%2C_Leichtathletikzentrum%2C_Padel_Courts%2C_2025_Margit-sziget.jpg',
+  'Top Padel Fit Center': 'https://toppadelfitcenter.com/wp-content/uploads/2024/06/Full-panoramic-scaled.webp',
+}
+
 interface Club {
   id: string
   nombre: string
@@ -57,13 +65,23 @@ export default function CanchasPage() {
         <div className="flex flex-col gap-6">
           {clubes.map(club => (
             <div key={club.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600 to-green-500 px-6 py-5">
-                <div className="flex items-start justify-between">
+              <div className="relative h-44 overflow-hidden">
+                {CLUB_FOTOS[club.nombre] ? (
+                  <img
+                    src={CLUB_FOTOS[club.nombre]}
+                    alt={club.nombre}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-green-600 to-green-500" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 px-6 py-4 flex items-end justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-white">{club.nombre}</h2>
-                    <p className="text-green-200 text-sm mt-1">📍 {club.direccion}</p>
+                    <p className="text-white/70 text-sm mt-0.5">📍 {club.direccion}</p>
                   </div>
-                  <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mt-1">
+                  <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1 rounded-full">
                     {club.canchas?.length} canchas
                   </span>
                 </div>

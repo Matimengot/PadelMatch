@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
+interface Jugador {
+  jugador_id: string
+  profiles: { nombre: string; nivel: number }
+}
+
 interface Partido {
   id: string
   fecha: string
@@ -15,12 +20,51 @@ interface Partido {
   estado: string
   creador_id: string
   canchas: { nombre: string; clubes: { nombre: string } }
-  profiles: { nombre: string }
+  profiles: { nombre: string; nivel: number }
+  partido_jugadores: Jugador[]
 }
 
 function horasHastaPartido(fecha: string, hora: string): number {
   const inicio = new Date(`${fecha}T${hora}`)
   return (inicio.getTime() - Date.now()) / 36e5
+}
+
+function formatFecha(fecha: string, hora: string) {
+  const d = new Date(fecha + 'T00:00:00')
+  const dia = d.toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' })
+  return `${dia.charAt(0).toUpperCase() + dia.slice(1)} | ${hora.slice(0, 5)}`
+}
+
+function SlotJugador({ jugador, vacio, onClick }: {
+  jugador?: { nombre: string; nivel: number }
+  vacio?: boolean
+  onClick?: () => void
+}) {
+  if (vacio) {
+    return (
+      <button
+        onClick={onClick}
+        className="flex flex-col items-center gap-1 group"
+      >
+        <div className="w-14 h-14 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-2xl group-hover:border-green-400 group-hover:text-green-400 transition-colors">
+          +
+        </div>
+        <span className="text-xs text-gray-400">Libre</span>
+        <span className="text-xs text-gray-300">—</span>
+      </button>
+    )
+  }
+
+  const inicial = jugador?.nombre?.charAt(0).toUpperCase() ?? '?'
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-lg">
+        {inicial}
+      </div>
+      <span className="text-xs font-medium text-gray-700 max-w-[56px] truncate text-center">{jugador?.nombre?.split(' ')[0]}</span>
+      <span className="text-xs font-bold text-green-600">{jugador?.nivel?.toFixed(1)}</span>
+    </div>
+  )
 }
 
 export default function PartidosPage() {
@@ -38,20 +82,22 @@ export default function PartidosPage() {
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
 
-      // Correr cancelación automática de partidos incompletos
       await supabase.rpc('cancelar_partidos_incompletos')
 
       const hoy = new Date().toISOString().split('T')[0]
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('partidos')
-        .select('id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id, canchas(nombre, clubes(nombre)), profiles!partidos_creador_id_fkey(nombre)')
+        .select(`
+          id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id,
+          canchas(nombre, clubes(nombre)),
+          profiles!partidos_creador_id_fkey(nombre, nivel),
+          partido_jugadores(jugador_id, profiles!partido_jugadores_jugador_id_fkey(nombre, nivel))
+        `)
         .gte('fecha', hoy)
         .eq('estado', 'activo')
         .lt('jugadores_confirmados', 4)
         .order('fecha', { ascending: true })
-      console.log('PARTIDOS DATA:', data, 'ERROR:', error)
 
-      // Mis partidos (para mostrar botón cancelar)
       const { data: misP } = await supabase
         .from('partido_jugadores')
         .select('partido_id')
@@ -78,33 +124,22 @@ export default function PartidosPage() {
 
   async function handleCancelar(partido: Partido) {
     const horas = horasHastaPartido(partido.fecha, partido.hora_inicio)
-
     if (partido.jugadores_confirmados >= 4 && horas < 24) {
       alert('No podés cancelar un partido lleno con menos de 24 horas de anticipación.')
       return
     }
-
     if (!confirm('¿Seguro que querés cancelarte de este partido?')) return
     setCancelando(partido.id)
-
-    await supabase.from('partido_jugadores').delete()
-      .eq('partido_id', partido.id).eq('jugador_id', userId!)
-
+    await supabase.from('partido_jugadores').delete().eq('partido_id', partido.id).eq('jugador_id', userId!)
     const nuevosJugadores = partido.jugadores_confirmados - 1
     if (nuevosJugadores === 0) {
       await supabase.from('partidos').update({ estado: 'cancelado' }).eq('id', partido.id)
     } else {
       await supabase.from('partidos').update({ jugadores_confirmados: nuevosJugadores }).eq('id', partido.id)
     }
-
     setPartidos(prev => prev.filter(p => p.id !== partido.id))
     setMisPartidos(prev => { const s = new Set(prev); s.delete(partido.id); return s })
     setCancelando(null)
-  }
-
-  function formatFecha(fecha: string) {
-    const d = new Date(fecha + 'T00:00:00')
-    return d.toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
   if (loading) {
@@ -125,11 +160,11 @@ export default function PartidosPage() {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="max-w-2xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Partidos abiertos</h1>
-            <p className="text-gray-500 mt-1">Unite a un partido o creá el tuyo</p>
+            <p className="text-gray-400 mt-1">Unite a un partido o creá el tuyo</p>
           </div>
           <a href="/partidos/nuevo" className="bg-green-600 text-white font-semibold px-6 py-3 rounded-full hover:bg-green-700 transition-colors">
             + Crear partido
@@ -150,46 +185,60 @@ export default function PartidosPage() {
               const yaUnido = misPartidos.has(partido.id)
               const horas = horasHastaPartido(partido.fecha, partido.hora_inicio)
               const puedeCancel = yaUnido && !(partido.jugadores_confirmados >= 4 && horas < 24)
+              const jugadores = partido.partido_jugadores ?? []
+              const libres = 4 - partido.jugadores_confirmados
 
               return (
-                <div key={partido.id} className={`bg-white rounded-2xl border p-6 ${yaUnido ? 'border-green-200' : 'border-gray-100'}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                <div key={partido.id} className={`bg-white rounded-2xl shadow-sm border p-6 ${yaUnido ? 'border-green-200' : 'border-gray-100'}`}>
+                  {/* Fecha y tipo */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg capitalize">
+                        {formatFecha(partido.fecha, partido.hora_inicio)}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                           partido.tipo === 'competitivo' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
                         }`}>
                           {partido.tipo === 'competitivo' ? '⚡ Competitivo' : '🤝 Amistoso'}
                         </span>
-                        <span className="text-xs text-gray-400 font-medium">Nivel {partido.nivel_min} — {partido.nivel_max}</span>
+                        <span className="text-xs text-gray-400">Nivel {partido.nivel_min} — {partido.nivel_max}</span>
                         {yaUnido && <span className="text-xs bg-green-600 text-white font-semibold px-2 py-0.5 rounded-full">Inscripto</span>}
                       </div>
-                      <p className="font-bold text-gray-900 text-lg capitalize">{formatFecha(partido.fecha)}</p>
-                      <p className="text-gray-500 text-sm mt-1">
-                        🕐 {partido.hora_inicio.slice(0, 5)} · 🎾 {partido.canchas?.nombre} · {partido.canchas?.clubes?.nombre}
-                      </p>
-                      <p className="text-gray-400 text-xs mt-2">Creado por {partido.profiles?.nombre}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-3 ml-4">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map(i => (
-                          <div key={i} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm ${
-                            i <= partido.jugadores_confirmados ? 'bg-green-600 border-green-600 text-white' : 'border-gray-200 text-gray-300'
-                          }`}>
-                            {i <= partido.jugadores_confirmados ? '✓' : i}
-                          </div>
-                        ))}
-                      </div>
+                  </div>
+
+                  {/* Slots jugadores */}
+                  <div className="flex justify-around mb-6">
+                    {jugadores.map((j, i) => (
+                      <SlotJugador key={i} jugador={j.profiles} />
+                    ))}
+                    {Array.from({ length: libres }).map((_, i) => (
+                      <SlotJugador
+                        key={`libre-${i}`}
+                        vacio
+                        onClick={!yaUnido ? () => handleUnirse(partido) : undefined}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Club + botón */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{partido.canchas?.clubes?.nombre}</p>
+                      <p className="text-xs text-gray-400">{partido.canchas?.nombre} · 90 min</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-green-600 font-bold">$1.900</p>
                       {yaUnido ? (
                         <button
                           onClick={() => handleCancelar(partido)}
                           disabled={cancelando === partido.id || !puedeCancel}
-                          className={`text-sm font-semibold px-5 py-2 rounded-full transition-colors ${
+                          className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors ${
                             puedeCancel
                               ? 'border border-red-200 text-red-500 hover:bg-red-50'
                               : 'border border-gray-100 text-gray-300 cursor-not-allowed'
                           }`}
-                          title={!puedeCancel ? 'No podés cancelar con menos de 24hs si el partido está lleno' : ''}
                         >
                           {cancelando === partido.id ? 'Cancelando...' : 'Cancelarme'}
                         </button>
@@ -204,10 +253,10 @@ export default function PartidosPage() {
                       )}
                     </div>
                   </div>
-                  {/* Aviso cancelación automática */}
+
                   {horas <= 4 && horas > 0 && partido.jugadores_confirmados < 4 && (
                     <div className="mt-3 bg-orange-50 border border-orange-100 rounded-xl px-4 py-2 text-xs text-orange-600 font-medium">
-                      ⚠️ Si no se completan 4 jugadores en {Math.floor(horas)}h {Math.round((horas % 1) * 60)}min, el partido se cancela y se devuelve el pago
+                      ⚠️ Si no se completan 4 jugadores en {Math.floor(horas)}h {Math.round((horas % 1) * 60)}min, el partido se cancela
                     </div>
                   )}
                 </div>

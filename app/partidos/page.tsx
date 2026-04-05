@@ -44,7 +44,7 @@ export default function PartidosPage() {
       const hoy = new Date().toISOString().split('T')[0]
       const { data, error } = await supabase
         .from('partidos')
-        .select('id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id, canchas(nombre, clubes(nombre)), profiles(nombre)')
+        .select('id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id, canchas(nombre, clubes(nombre)), profiles!partidos_creador_id_fkey(nombre)')
         .gte('fecha', hoy)
         .eq('estado', 'activo')
         .lt('jugadores_confirmados', 4)

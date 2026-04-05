@@ -5,9 +5,9 @@ import { supabase } from '@/lib/supabase'
 
 const CLUB_FOTOS: Record<string, string> = {
   'Boss Padel Carrasco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Outdoor_padel_court_Mariestad.jpg/800px-Outdoor_padel_court_Mariestad.jpg',
-  'Indoor Padel Malvin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Mobile_padel_court_in_Stockholm_2021_-_01.jpg/800px-Mobile_padel_court_in_Stockholm_2021_-_01.jpg',
-  'Indoor Padel Nuevo Centro': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Bagartorp_Padelbana_1000_Solnabilder.jpg/800px-Bagartorp_Padelbana_1000_Solnabilder.jpg',
-  'World Padel Center': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Kindertag%2C_Leichtathletikzentrum%2C_Padel_Courts%2C_2025_Margit-sziget.jpg/800px-Kindertag%2C_Leichtathletikzentrum%2C_Padel_Courts%2C_2025_Margit-sziget.jpg',
+  'Indoor Padel Malvin': 'https://upload.wikimedia.org/wikipedia/commons/7/7a/Mobile_padel_court_in_Stockholm_2021_-_01.jpg',
+  'Indoor Padel Nuevo Centro': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Padel_court.jpg/800px-Padel_court.jpg',
+  'World Padel Center': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Bik%C3%A1s_Park%2C_P%C3%A1del-Spielfeld%2C_2021_Kelenf%C3%B6ld.jpg/800px-Bik%C3%A1s_Park%2C_P%C3%A1del-Spielfeld%2C_2021_Kelenf%C3%B6ld.jpg',
   'Top Padel Fit Center': 'https://toppadelfitcenter.com/wp-content/uploads/2024/06/Full-panoramic-scaled.webp',
 }
 

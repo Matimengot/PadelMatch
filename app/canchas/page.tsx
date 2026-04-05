@@ -70,6 +70,7 @@ export default function CanchasPage() {
                   <img
                     src={CLUB_FOTOS[club.nombre]}
                     alt={club.nombre}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 ) : (

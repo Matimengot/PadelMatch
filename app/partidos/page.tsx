@@ -16,7 +16,6 @@ interface Partido {
   nivel_min: number
   nivel_max: number
   tipo: string
-  genero: string
   jugadores_confirmados: number
   estado: string
   creador_id: string
@@ -95,7 +94,7 @@ export default function PartidosPage() {
         supabase
           .from('partidos')
           .select(`
-            id, fecha, hora_inicio, nivel_min, nivel_max, tipo, genero, jugadores_confirmados, estado, creador_id,
+            id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id,
             canchas(nombre, clubes(nombre)),
             profiles!partidos_creador_id_fkey(nombre, nivel),
             partido_jugadores(jugador_id, profiles!partido_jugadores_jugador_id_fkey(nombre, nivel))
@@ -142,12 +141,6 @@ export default function PartidosPage() {
   const partidosFiltrados = partidos
     .filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
     .filter(p => !filtroMiNivel || !miNivel || (p.nivel_min <= miNivel && p.nivel_max >= miNivel))
-
-  const GENERO_LABEL: Record<string, string> = {
-    todos: '👥 Todos',
-    mujeres: '♀ Solo mujeres',
-    mixto: '⚡ Mixto',
-  }
 
   if (loading) {
     return (
@@ -255,11 +248,6 @@ export default function PartidosPage() {
                           {partido.tipo === 'competitivo' ? '⚡ Competitivo' : '🤝 Amistoso'}
                         </span>
                         <span className="text-xs text-gray-400">Nivel {partido.nivel_min} — {partido.nivel_max}</span>
-                        {partido.genero && partido.genero !== 'todos' && (
-                          <span className="text-xs bg-purple-100 text-purple-700 font-semibold px-2.5 py-0.5 rounded-full">
-                            {GENERO_LABEL[partido.genero] ?? partido.genero}
-                          </span>
-                        )}
                         {yaUnido && <span className="text-xs bg-green-600 text-white font-semibold px-2 py-0.5 rounded-full">Inscripto</span>}
                       </div>
                     </div>

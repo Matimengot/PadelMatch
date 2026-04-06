@@ -40,7 +40,6 @@ export default function NuevoPartidoPage() {
   const [nivelMax, setNivelMax] = useState('7.0')
   const [miNivel, setMiNivel] = useState(3.0)
   const [tipo, setTipo] = useState('amistoso')
-  const [genero, setGenero] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [resultados, setResultados] = useState<Jugador[]>([])
   const [companero, setCompanero] = useState<Jugador | null>(null)
@@ -156,7 +155,6 @@ export default function NuevoPartidoPage() {
         nivel_min: parseFloat(nivelMin),
         nivel_max: parseFloat(nivelMax),
         tipo,
-        genero,
         jugadores_confirmados: jugadoresIniciales,
       })
       .select('id')
@@ -200,31 +198,6 @@ export default function NuevoPartidoPage() {
                 className={`py-3 rounded-xl text-sm font-semibold border transition-colors ${tipo === 'competitivo' ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
                 ⚡ Competitivo
               </button>
-            </div>
-          </div>
-
-          {/* Género */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { value: 'todos', label: '👥 Todos' },
-                { value: 'mujeres', label: '♀ Solo mujeres' },
-                { value: 'mixto', label: '⚡ Mixto' },
-              ].map(op => (
-                <button
-                  key={op.value}
-                  type="button"
-                  onClick={() => setGenero(op.value)}
-                  className={`py-3 rounded-xl text-xs font-semibold border transition-colors ${
-                    genero === op.value
-                      ? 'bg-purple-600 text-white border-purple-600'
-                      : 'border-gray-200 text-gray-600 hover:border-purple-300'
-                  }`}
-                >
-                  {op.label}
-                </button>
-              ))}
             </div>
           </div>
 

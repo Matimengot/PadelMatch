@@ -24,6 +24,7 @@ interface Resultado {
 export default function MisPartidosPage() {
   const router = useRouter()
   const [proximos, setProximos] = useState<Partido[]>([])
+
   const [pasados, setPasados] = useState<Partido[]>([])
   const [resultados, setResultados] = useState<Map<string, Resultado>>(new Map())
   const [jugadoresPorPartido, setJugadoresPorPartido] = useState<Map<string, string[]>>(new Map())
@@ -116,24 +117,35 @@ export default function MisPartidosPage() {
             <h2 className="text-lg font-bold text-gray-700 mb-4">Próximos</h2>
             <div className="flex flex-col gap-4 mb-8">
               {proximos.map(p => (
-                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/partidos/${p.id}`)}
+                  className="bg-white rounded-2xl border border-green-100 p-5 cursor-pointer hover:shadow-md transition-shadow"
+                >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-bold text-gray-900 capitalize">{formatFecha(p.fecha)}</p>
-                      <p className="text-green-600 font-semibold mt-1">{p.hora_inicio.slice(0, 5)}</p>
-                      <p className="text-gray-500 text-sm mt-1">🎾 {p.canchas?.nombre} · {p.canchas?.clubes?.nombre}</p>
-                      <div className="flex gap-1 mt-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.tipo === 'competitivo' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                          {p.tipo === 'competitivo' ? '⚡ Competitivo' : '🤝 Amistoso'}
+                        </span>
+                      </div>
+                      <p className="font-bold text-gray-900 capitalize">{formatFecha(p.fecha)} · {p.hora_inicio.slice(0, 5)}</p>
+                      <p className="text-gray-500 text-sm mt-1">📍 {p.canchas?.clubes?.nombre} — {p.canchas?.nombre}</p>
+                      <div className="flex flex-wrap gap-1 mt-2">
                         {(jugadoresPorPartido.get(p.id) ?? []).map((n, i) => (
                           <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{n}</span>
                         ))}
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      {[1,2,3,4].map(i => (
-                        <div key={i} className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs ${i <= p.jugadores_confirmados ? 'bg-green-600 border-green-600 text-white' : 'border-gray-200 text-gray-300'}`}>
-                          {i <= p.jugadores_confirmados ? '✓' : i}
-                        </div>
-                      ))}
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex gap-1">
+                        {[1,2,3,4].map(i => (
+                          <div key={i} className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs ${i <= p.jugadores_confirmados ? 'bg-green-600 border-green-600 text-white' : 'border-gray-200 text-gray-300'}`}>
+                            {i <= p.jugadores_confirmados ? '✓' : i}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-400">Ver detalle →</span>
                     </div>
                   </div>
                 </div>

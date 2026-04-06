@@ -28,6 +28,12 @@ function fiabilidad(partidos: number): number {
   return Math.min(100, partidos * 10)
 }
 
+function fiabilidadLabel(pct: number): { label: string; color: string; bg: string } {
+  if (pct >= 80) return { label: 'ALTA', color: 'text-green-700', bg: 'bg-green-100' }
+  if (pct >= 40) return { label: 'MEDIA', color: 'text-orange-700', bg: 'bg-orange-100' }
+  return { label: 'BAJA', color: 'text-red-700', bg: 'bg-red-100' }
+}
+
 function NivelChart({ resultados }: { resultados: Resultado[] }) {
   if (resultados.length < 2) return null
   const valores = resultados.map(r => r.nivel_nuevo)
@@ -116,6 +122,7 @@ export default function PerfilPage() {
   const victorias = resultados.filter(r => r.resultado === 'victoria').length
   const derrotas = resultados.filter(r => r.resultado === 'derrota').length
   const fiab = fiabilidad(profile?.partidos_jugados ?? resultados.length)
+  const fiabInfo = fiabilidadLabel(fiab)
   const winRate = resultados.length > 0 ? Math.round((victorias / resultados.length) * 100) : 0
 
   if (loading) {
@@ -149,9 +156,10 @@ export default function PerfilPage() {
               <p className="text-green-200 text-sm mt-0.5">{profile?.partidos_jugados ?? 0} partidos jugados</p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-green-200 font-medium mb-1">NIVEL</p>
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30">
-                <span className="text-2xl font-bold">{profile?.nivel?.toFixed(1)}</span>
+              <p className="text-xs text-green-200 font-medium mb-1 uppercase tracking-wider">Nivel</p>
+              <div className="w-20 h-20 bg-white/20 rounded-2xl flex flex-col items-center justify-center border border-white/30 gap-0.5">
+                <span className="text-3xl font-black leading-none">{profile?.nivel?.toFixed(1)}</span>
+                <span className="text-xs text-green-200">/ 7.0</span>
               </div>
             </div>
           </div>
@@ -180,7 +188,12 @@ export default function PerfilPage() {
               <h2 className="text-base font-bold text-gray-900">Fiabilidad del nivel</h2>
               <p className="text-xs text-gray-400 mt-0.5">Basado en partidos competitivos jugados</p>
             </div>
-            <span className="text-2xl font-bold text-green-600">{fiab}%</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${fiabInfo.bg} ${fiabInfo.color}`}>
+                {fiabInfo.label}
+              </span>
+              <span className="text-2xl font-bold text-green-600">{fiab}%</span>
+            </div>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2">
             <div className="bg-green-600 h-2 rounded-full transition-all duration-700" style={{ width: `${fiab}%` }} />

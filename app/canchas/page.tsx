@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import Navbar from '@/components/Navbar'
 
 const CLUB_FOTOS: Record<string, string> = {
   'Boss Padel Carrasco': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Outdoor_padel_court_Mariestad.jpg/800px-Outdoor_padel_court_Mariestad.jpg',
@@ -50,13 +51,7 @@ export default function CanchasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
-        <a href="/dashboard" className="text-2xl font-bold text-green-600">PadelMatch</a>
-        <div className="flex items-center gap-6">
-          <a href="/canchas" className="text-green-600 font-semibold">Canchas</a>
-          <a href="/partidos" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Partidos</a>
-        </div>
-      </nav>
+      <Navbar active="canchas" />
 
       <main className="max-w-4xl mx-auto px-6 py-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-1">Reservar cancha</h1>

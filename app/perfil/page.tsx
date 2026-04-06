@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
 
 interface Profile {
   id: string
@@ -135,15 +136,19 @@ export default function PerfilPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
-        <a href="/dashboard" className="text-2xl font-bold text-green-600">PadelMatch</a>
-        <div className="flex items-center gap-6">
-          <a href="/canchas" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Canchas</a>
-          <a href="/partidos" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Partidos</a>
-        </div>
-      </nav>
+      <Navbar active="perfil" />
 
       <main className="max-w-2xl mx-auto px-6 py-8 flex flex-col gap-5">
+
+        {/* Logout */}
+        <div className="flex justify-end">
+          <button
+            onClick={async () => { await supabase.auth.signOut(); router.push('/') }}
+            className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
 
         {/* Banner perfil */}
         <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-6 text-white shadow-sm">

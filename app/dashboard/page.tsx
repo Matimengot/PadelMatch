@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
 
 interface Profile {
   nombre: string
@@ -53,19 +54,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
-        <span className="text-2xl font-bold text-green-600">PadelMatch</span>
-        <div className="flex items-center gap-6">
-          <a href="/canchas" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Canchas</a>
-          <a href="/partidos" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Partidos</a>
-          <a href="/ranking" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Ranking</a>
-          <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 text-sm transition-colors">Salir</button>
-          <div className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-            {profile?.nombre?.charAt(0).toUpperCase()}
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <main className="max-w-4xl mx-auto px-6 py-10">
         {/* Banner bienvenida + stats */}

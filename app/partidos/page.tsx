@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
 
 interface Jugador {
   jugador_id: string
@@ -176,13 +177,7 @@ export default function PartidosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm px-8 py-4 flex items-center justify-between">
-        <a href="/dashboard" className="text-2xl font-bold text-green-600">PadelMatch</a>
-        <div className="flex items-center gap-6">
-          <a href="/canchas" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Canchas</a>
-          <a href="/partidos" className="text-green-600 font-semibold">Partidos</a>
-        </div>
-      </nav>
+      <Navbar active="partidos" />
 
       <main className="max-w-2xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-6">

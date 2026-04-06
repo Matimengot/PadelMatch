@@ -75,6 +75,18 @@ export default function PartidoDetailPage() {
   const [loading, setLoading] = useState(true)
   const [uniendose, setUniendose] = useState<number | null>(null)
   const [cancelando, setCancelando] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+
+  async function handleCompartir() {
+    const url = window.location.href
+    if (navigator.share) {
+      await navigator.share({ title: 'PadelMatch — Unite a este partido', url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    }
+  }
 
   async function cargarJugadores(partidoId: string) {
     const { data: j } = await supabase
@@ -156,14 +168,22 @@ export default function PartidoDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center gap-4">
+      <nav className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="text-gray-400 hover:text-gray-700 transition-colors text-xl font-light"
+          >
+            ←
+          </button>
+          <span className="text-xl font-bold text-green-600">PadelMatch</span>
+        </div>
         <button
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-gray-700 transition-colors text-xl font-light"
+          onClick={handleCompartir}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-green-600 transition-colors border border-gray-200 hover:border-green-300 px-4 py-2 rounded-full"
         >
-          ←
+          {copiado ? '✓ Copiado' : '↑ Compartir'}
         </button>
-        <span className="text-xl font-bold text-green-600">PadelMatch</span>
       </nav>
 
       <main className="max-w-lg mx-auto px-6 py-8 flex flex-col gap-4">

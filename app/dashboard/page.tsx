@@ -59,6 +59,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-6">
           <a href="/canchas" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Canchas</a>
           <a href="/partidos" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Partidos</a>
+          <a href="/ranking" className="text-gray-500 hover:text-gray-900 font-medium transition-colors">Ranking</a>
           <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 text-sm transition-colors">Salir</button>
           <div className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
             {profile?.nombre?.charAt(0).toUpperCase()}
@@ -111,6 +112,11 @@ export default function DashboardPage() {
             <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-gray-200 transition-colors">👤</div>
             <h3 className="text-lg font-bold text-gray-900">Mi perfil</h3>
             <p className="text-gray-400 text-sm mt-1">Nivel, evolución, amigos y estadísticas</p>
+          </a>
+          <a href="/ranking" className="bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-md hover:border-green-200 transition-all group">
+            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-yellow-200 transition-colors">🏅</div>
+            <h3 className="text-lg font-bold text-gray-900">Ranking</h3>
+            <p className="text-gray-400 text-sm mt-1">Los mejores jugadores de PadelMatch</p>
           </a>
         </div>
       </main>

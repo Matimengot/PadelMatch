@@ -125,10 +125,13 @@ export default function PartidosPage() {
     const nuevosJugadores = partido.jugadores_confirmados - 1
     if (nuevosJugadores === 0) {
       await supabase.from('partidos').update({ estado: 'cancelado' }).eq('id', partido.id)
+      setPartidos(prev => prev.filter(p => p.id !== partido.id))
     } else {
       await supabase.from('partidos').update({ jugadores_confirmados: nuevosJugadores }).eq('id', partido.id)
+      setPartidos(prev => prev.map(p =>
+        p.id === partido.id ? { ...p, jugadores_confirmados: nuevosJugadores } : p
+      ))
     }
-    setPartidos(prev => prev.filter(p => p.id !== partido.id))
     setMisPartidos(prev => { const s = new Set(prev); s.delete(partido.id); return s })
     setCancelando(null)
   }

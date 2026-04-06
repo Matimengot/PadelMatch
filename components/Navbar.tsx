@@ -13,13 +13,15 @@ const LINKS = [
 
 export default function Navbar({ active }: { active?: string }) {
   const [inicial, setInicial] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('profiles').select('nombre').eq('id', user.id).single()
+      const { data } = await supabase.from('profiles').select('nombre, avatar_url').eq('id', user.id).single()
       if (data?.nombre) setInicial(data.nombre.charAt(0).toUpperCase())
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url)
     }
     load()
   }, [])
@@ -52,13 +54,14 @@ export default function Navbar({ active }: { active?: string }) {
         {/* Avatar → Perfil */}
         <a
           href="/perfil"
-          className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-colors ${
-            active === 'perfil'
-              ? 'bg-green-700 text-white ring-2 ring-green-400 ring-offset-1'
-              : 'bg-green-600 text-white hover:bg-green-700'
+          className={`w-9 h-9 rounded-full flex-shrink-0 overflow-hidden transition-all ${
+            active === 'perfil' ? 'ring-2 ring-green-500 ring-offset-1' : ''
           }`}
         >
-          {inicial || '·'}
+          {avatarUrl
+            ? <img src={avatarUrl} alt="perfil" className="w-full h-full object-cover" />
+            : <div className={`w-full h-full flex items-center justify-center font-bold text-sm ${active === 'perfil' ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>{inicial || '·'}</div>
+          }
         </a>
       </div>
     </nav>

@@ -10,6 +10,8 @@ interface Profile {
   nombre: string
   nivel: number
   partidos_jugados: number
+  avatar_url: string | null
+  lado_preferido: string | null
 }
 
 interface Resultado {
@@ -78,6 +80,7 @@ export default function PerfilPage() {
   const [resultadosBusqueda, setResultadosBusqueda] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -85,7 +88,7 @@ export default function PerfilPage() {
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
       const [{ data: prof }, { data: res }, { data: amg }] = await Promise.all([
-        supabase.from('profiles').select('id, nombre, nivel, partidos_jugados').eq('id', user.id).single(),
+        supabase.from('profiles').select('id, nombre, nivel, partidos_jugados, avatar_url, lado_preferido').eq('id', user.id).single(),
         supabase.from('resultados_partidos').select('id, resultado, nivel_anterior, nivel_nuevo, created_at').eq('jugador_id', user.id).order('created_at', { ascending: true }).limit(10),
         supabase.from('amigos').select('amigo_id, profiles(nombre, nivel)').eq('jugador_id', user.id),
       ])
@@ -112,6 +115,41 @@ export default function PerfilPage() {
     setAmigos(prev => [...prev, { amigo_id: amigo.id, profiles: { nombre: amigo.nombre, nivel: amigo.nivel } }])
     setBusqueda('')
     setResultadosBusqueda([])
+  }
+
+  async function handleFotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp']
+    if (!tiposPermitidos.includes(file.type)) {
+      alert('Solo se permiten imágenes JPG, PNG o WEBP')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('La imagen no puede superar los 2 MB')
+      return
+    }
+
+    setSubiendoFoto(true)
+    const ext = file.name.split('.').pop()
+    const path = `${userId}/avatar.${ext}`
+
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (error) { alert('Error subiendo la foto'); setSubiendoFoto(false); return }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    // Forzar reload del cache agregando timestamp
+    const urlConCache = `${publicUrl}?t=${Date.now()}`
+    await supabase.from('profiles').update({ avatar_url: urlConCache }).eq('id', userId)
+    setProfile(prev => prev ? { ...prev, avatar_url: urlConCache } : prev)
+    setSubiendoFoto(false)
+  }
+
+  async function handleLadoChange(lado: string) {
+    if (!userId) return
+    await supabase.from('profiles').update({ lado_preferido: lado }).eq('id', userId)
+    setProfile(prev => prev ? { ...prev, lado_preferido: lado } : prev)
   }
 
   async function handleEliminarAmigo(amigoId: string) {
@@ -153,12 +191,27 @@ export default function PerfilPage() {
         {/* Banner perfil */}
         <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-6 text-white shadow-sm">
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-white text-3xl font-bold border-2 border-white/30">
-              {profile?.nombre?.charAt(0).toUpperCase()}
-            </div>
+            {/* Avatar con opción de cambiar foto */}
+            <label className="relative cursor-pointer group flex-shrink-0">
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFotoUpload} disabled={subiendoFoto} />
+              <div className="w-20 h-20 rounded-full border-2 border-white/30 overflow-hidden bg-white/20 flex items-center justify-center text-white text-3xl font-bold">
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                  : profile?.nombre?.charAt(0).toUpperCase()
+                }
+              </div>
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-white text-xs font-semibold">{subiendoFoto ? '...' : '📷'}</span>
+              </div>
+            </label>
             <div className="flex-1">
               <h1 className="text-2xl font-bold">{profile?.nombre}</h1>
               <p className="text-green-200 text-sm mt-0.5">{profile?.partidos_jugados ?? 0} partidos jugados</p>
+              {profile?.lado_preferido && (
+                <p className="text-green-300 text-xs mt-1">
+                  {profile.lado_preferido === 'drive' ? '🎾 Drive' : profile.lado_preferido === 'reves' ? '🎾 Revés' : '🎾 Drive y Revés'}
+                </p>
+              )}
             </div>
             <div className="text-center">
               <p className="text-xs text-green-200 font-medium mb-1 uppercase tracking-wider">Nivel</p>
@@ -208,6 +261,34 @@ export default function PerfilPage() {
               ? `Jugá ${Math.ceil((100 - fiab) / 10)} partidos competitivos más para alcanzar el 100%`
               : 'Tu nivel es altamente confiable'}
           </p>
+        </div>
+
+        {/* Lado preferido */}
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <h2 className="text-base font-bold text-gray-900 mb-1">Lado preferido</h2>
+          <p className="text-xs text-gray-400 mb-4">¿En qué lado de la cancha te gusta jugar?</p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { value: 'drive', label: 'Drive', desc: 'Lado derecho' },
+              { value: 'reves', label: 'Revés', desc: 'Lado izquierdo' },
+              { value: 'ambas', label: 'Ambos', desc: 'Me adapto' },
+            ].map(op => (
+              <button
+                key={op.value}
+                onClick={() => handleLadoChange(op.value)}
+                className={`py-3 px-2 rounded-xl border-2 text-center transition-colors ${
+                  (profile?.lado_preferido ?? 'ambas') === op.value
+                    ? 'border-green-600 bg-green-50'
+                    : 'border-gray-100 hover:border-green-300'
+                }`}
+              >
+                <p className={`text-sm font-bold ${(profile?.lado_preferido ?? 'ambas') === op.value ? 'text-green-700' : 'text-gray-700'}`}>
+                  {op.label}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{op.desc}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Evolución */}

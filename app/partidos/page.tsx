@@ -16,6 +16,7 @@ interface Partido {
   nivel_min: number
   nivel_max: number
   tipo: string
+  genero: string
   jugadores_confirmados: number
   estado: string
   creador_id: string
@@ -42,10 +43,7 @@ function SlotJugador({ jugador, vacio, onClick }: {
 }) {
   if (vacio) {
     return (
-      <button
-        onClick={onClick}
-        className="flex flex-col items-center gap-1 group"
-      >
+      <button onClick={onClick} className="flex flex-col items-center gap-1 group">
         <div className="w-14 h-14 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-2xl group-hover:border-green-400 group-hover:text-green-400 transition-colors">
           +
         </div>
@@ -67,6 +65,8 @@ function SlotJugador({ jugador, vacio, onClick }: {
   )
 }
 
+type FiltroTipo = 'todos' | 'amistoso' | 'competitivo'
+
 export default function PartidosPage() {
   const router = useRouter()
   const [partidos, setPartidos] = useState<Partido[]>([])
@@ -74,6 +74,9 @@ export default function PartidosPage() {
   const [loading, setLoading] = useState(true)
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [miNivel, setMiNivel] = useState<number | null>(null)
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos')
+  const [filtroMiNivel, setFiltroMiNivel] = useState(false)
 
   function irADetalle(partidoId: string) {
     router.push(`/partidos/${partidoId}`)
@@ -88,26 +91,26 @@ export default function PartidosPage() {
       await supabase.rpc('cancelar_partidos_incompletos')
 
       const hoy = new Date().toISOString().split('T')[0]
-      const { data } = await supabase
-        .from('partidos')
-        .select(`
-          id, fecha, hora_inicio, nivel_min, nivel_max, tipo, jugadores_confirmados, estado, creador_id,
-          canchas(nombre, clubes(nombre)),
-          profiles!partidos_creador_id_fkey(nombre, nivel),
-          partido_jugadores(jugador_id, profiles!partido_jugadores_jugador_id_fkey(nombre, nivel))
-        `)
-        .gte('fecha', hoy)
-        .eq('estado', 'activo')
-        .lt('jugadores_confirmados', 4)
-        .order('fecha', { ascending: true })
-
-      const { data: misP } = await supabase
-        .from('partido_jugadores')
-        .select('partido_id')
-        .eq('jugador_id', user.id)
+      const [{ data }, { data: misP }, { data: prof }] = await Promise.all([
+        supabase
+          .from('partidos')
+          .select(`
+            id, fecha, hora_inicio, nivel_min, nivel_max, tipo, genero, jugadores_confirmados, estado, creador_id,
+            canchas(nombre, clubes(nombre)),
+            profiles!partidos_creador_id_fkey(nombre, nivel),
+            partido_jugadores(jugador_id, profiles!partido_jugadores_jugador_id_fkey(nombre, nivel))
+          `)
+          .gte('fecha', hoy)
+          .eq('estado', 'activo')
+          .lt('jugadores_confirmados', 4)
+          .order('fecha', { ascending: true }),
+        supabase.from('partido_jugadores').select('partido_id').eq('jugador_id', user.id),
+        supabase.from('profiles').select('nivel').eq('id', user.id).single(),
+      ])
 
       setMisPartidos(new Set((misP ?? []).map(p => p.partido_id)))
       setPartidos(data ?? [])
+      if (prof) setMiNivel(prof.nivel)
       setLoading(false)
     }
     load()
@@ -136,6 +139,16 @@ export default function PartidosPage() {
     setCancelando(null)
   }
 
+  const partidosFiltrados = partidos
+    .filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
+    .filter(p => !filtroMiNivel || !miNivel || (p.nivel_min <= miNivel && p.nivel_max >= miNivel))
+
+  const GENERO_LABEL: Record<string, string> = {
+    todos: '👥 Todos',
+    mujeres: '♀ Solo mujeres',
+    mixto: '⚡ Mixto',
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -155,32 +168,73 @@ export default function PartidosPage() {
       </nav>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Partidos abiertos</h1>
             <p className="text-gray-400 mt-1">Unite a un partido o creá el tuyo</p>
           </div>
           <a href="/partidos/nuevo" className="bg-green-600 text-white font-semibold px-6 py-3 rounded-full hover:bg-green-700 transition-colors">
-            + Crear partido
+            + Crear
           </a>
         </div>
 
-        {partidos.length === 0 ? (
+        {/* Filtros */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {(['todos', 'amistoso', 'competitivo'] as FiltroTipo[]).map(tipo => (
+            <button
+              key={tipo}
+              onClick={() => setFiltroTipo(tipo)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+                filtroTipo === tipo
+                  ? tipo === 'competitivo'
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : tipo === 'amistoso'
+                    ? 'bg-green-600 text-white border-green-600'
+                    : 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              {tipo === 'todos' ? 'Todos' : tipo === 'amistoso' ? '🤝 Amistoso' : '⚡ Competitivo'}
+            </button>
+          ))}
+          {miNivel && (
+            <button
+              onClick={() => setFiltroMiNivel(prev => !prev)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+                filtroMiNivel
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              Mi nivel ({miNivel?.toFixed(1)})
+            </button>
+          )}
+        </div>
+
+        {partidosFiltrados.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
             <p className="text-4xl mb-4">🎾</p>
-            <p className="text-gray-500 text-lg">No hay partidos abiertos por ahora</p>
-            <a href="/partidos/nuevo" className="mt-4 inline-block text-green-600 font-semibold hover:underline">
-              Creá el primero
-            </a>
+            <p className="text-gray-500 text-lg">
+              {partidos.length === 0 ? 'No hay partidos abiertos por ahora' : 'Ningún partido coincide con los filtros'}
+            </p>
+            {partidos.length === 0 && (
+              <a href="/partidos/nuevo" className="mt-4 inline-block text-green-600 font-semibold hover:underline">
+                Creá el primero
+              </a>
+            )}
+            {partidos.length > 0 && (
+              <button onClick={() => { setFiltroTipo('todos'); setFiltroMiNivel(false) }} className="mt-4 inline-block text-green-600 font-semibold hover:underline">
+                Limpiar filtros
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {partidos.map(partido => {
+            {partidosFiltrados.map(partido => {
               const yaUnido = misPartidos.has(partido.id)
               const horas = horasHastaPartido(partido.fecha, partido.hora_inicio)
               const puedeCancel = yaUnido && !(partido.jugadores_confirmados >= 4 && horas < 24)
               const jugadores = partido.partido_jugadores ?? []
-              const libres = 4 - partido.jugadores_confirmados
 
               return (
                 <div
@@ -194,13 +248,18 @@ export default function PartidosPage() {
                       <p className="font-bold text-gray-900 text-lg capitalize">
                         {formatFecha(partido.fecha, partido.hora_inicio)}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                           partido.tipo === 'competitivo' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
                         }`}>
                           {partido.tipo === 'competitivo' ? '⚡ Competitivo' : '🤝 Amistoso'}
                         </span>
                         <span className="text-xs text-gray-400">Nivel {partido.nivel_min} — {partido.nivel_max}</span>
+                        {partido.genero && partido.genero !== 'todos' && (
+                          <span className="text-xs bg-purple-100 text-purple-700 font-semibold px-2.5 py-0.5 rounded-full">
+                            {GENERO_LABEL[partido.genero] ?? partido.genero}
+                          </span>
+                        )}
                         {yaUnido && <span className="text-xs bg-green-600 text-white font-semibold px-2 py-0.5 rounded-full">Inscripto</span>}
                       </div>
                     </div>

@@ -76,6 +76,8 @@ export default function PartidosPage() {
   const [miNivel, setMiNivel] = useState<number | null>(null)
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos')
   const [filtroMiNivel, setFiltroMiNivel] = useState(false)
+  const [filtroFecha, setFiltroFecha] = useState<'todos' | 'hoy' | 'manana' | 'semana'>('todos')
+  const [filtroClub, setFiltroClub] = useState('')
 
   function irADetalle(partidoId: string) {
     router.push(`/partidos/${partidoId}`)
@@ -138,9 +140,31 @@ export default function PartidosPage() {
     setCancelando(null)
   }
 
+  const hoy = new Date().toISOString().split('T')[0]
+  const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  const enSieteDias = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+
+  const clubes = [...new Set(partidos.map(p => p.canchas?.clubes?.nombre).filter(Boolean))]
+
   const partidosFiltrados = partidos
     .filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
     .filter(p => !filtroMiNivel || !miNivel || (p.nivel_min <= miNivel && p.nivel_max >= miNivel))
+    .filter(p => {
+      if (filtroFecha === 'hoy') return p.fecha === hoy
+      if (filtroFecha === 'manana') return p.fecha === manana
+      if (filtroFecha === 'semana') return p.fecha >= hoy && p.fecha <= enSieteDias
+      return true
+    })
+    .filter(p => !filtroClub || p.canchas?.clubes?.nombre === filtroClub)
+
+  const hayFiltrosActivos = filtroTipo !== 'todos' || filtroMiNivel || filtroFecha !== 'todos' || filtroClub !== ''
+
+  function limpiarFiltros() {
+    setFiltroTipo('todos')
+    setFiltroMiNivel(false)
+    setFiltroFecha('todos')
+    setFiltroClub('')
+  }
 
   if (loading) {
     return (
@@ -172,34 +196,77 @@ export default function PartidosPage() {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(['todos', 'amistoso', 'competitivo'] as FiltroTipo[]).map(tipo => (
-            <button
-              key={tipo}
-              onClick={() => setFiltroTipo(tipo)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                filtroTipo === tipo
-                  ? tipo === 'competitivo'
-                    ? 'bg-orange-500 text-white border-orange-500'
-                    : tipo === 'amistoso'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col gap-3">
+          {/* Fila 1: tipo + nivel */}
+          <div className="flex flex-wrap gap-2">
+            {(['todos', 'amistoso', 'competitivo'] as FiltroTipo[]).map(tipo => (
+              <button
+                key={tipo}
+                onClick={() => setFiltroTipo(tipo)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                  filtroTipo === tipo
+                    ? tipo === 'competitivo'
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : tipo === 'amistoso'
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                {tipo === 'todos' ? 'Todos' : tipo === 'amistoso' ? '🤝 Amistoso' : '⚡ Competitivo'}
+              </button>
+            ))}
+            {miNivel && (
+              <button
+                onClick={() => setFiltroMiNivel(prev => !prev)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                  filtroMiNivel
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                Mi nivel ({miNivel?.toFixed(1)})
+              </button>
+            )}
+          </div>
+
+          {/* Fila 2: fecha */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { value: 'todos', label: 'Cualquier día' },
+              { value: 'hoy', label: 'Hoy' },
+              { value: 'manana', label: 'Mañana' },
+              { value: 'semana', label: 'Esta semana' },
+            ] as { value: typeof filtroFecha; label: string }[]).map(op => (
+              <button
+                key={op.value}
+                onClick={() => setFiltroFecha(op.value)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                  filtroFecha === op.value
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Fila 3: club */}
+          {clubes.length > 1 && (
+            <select
+              value={filtroClub}
+              onChange={e => setFiltroClub(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              {tipo === 'todos' ? 'Todos' : tipo === 'amistoso' ? '🤝 Amistoso' : '⚡ Competitivo'}
-            </button>
-          ))}
-          {miNivel && (
-            <button
-              onClick={() => setFiltroMiNivel(prev => !prev)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                filtroMiNivel
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}
-            >
-              Mi nivel ({miNivel?.toFixed(1)})
+              <option value="">Todos los clubes</option>
+              {clubes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+
+          {hayFiltrosActivos && (
+            <button onClick={limpiarFiltros} className="text-xs text-gray-400 hover:text-gray-600 text-left">
+              × Limpiar filtros
             </button>
           )}
         </div>
@@ -215,8 +282,8 @@ export default function PartidosPage() {
                 Creá el primero
               </a>
             )}
-            {partidos.length > 0 && (
-              <button onClick={() => { setFiltroTipo('todos'); setFiltroMiNivel(false) }} className="mt-4 inline-block text-green-600 font-semibold hover:underline">
+            {hayFiltrosActivos && (
+              <button onClick={limpiarFiltros} className="mt-4 inline-block text-green-600 font-semibold hover:underline">
                 Limpiar filtros
               </button>
             )}

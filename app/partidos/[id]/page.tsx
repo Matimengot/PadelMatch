@@ -247,12 +247,13 @@ export default function PartidoDetailPage() {
         {/* Precio */}
         <div className="bg-white rounded-2xl shadow-sm px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-400">Por jugador</p>
+            <p className="text-xs text-gray-400">Total cancha</p>
             <p className="text-2xl font-bold text-gray-900 mt-0.5">$1.900</p>
+            <p className="text-xs text-gray-400 mt-0.5">90 min</p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-400">Total cancha</p>
-            <p className="text-sm font-semibold text-gray-500 mt-0.5">$7.600 / 90 min</p>
+            <p className="text-xs text-gray-400">Por jugador</p>
+            <p className="text-sm font-semibold text-green-600 mt-0.5">$475</p>
           </div>
         </div>
 

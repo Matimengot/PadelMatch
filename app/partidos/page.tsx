@@ -241,7 +241,10 @@ export default function PartidosPage() {
                       <p className="text-xs text-gray-400">{partido.canchas?.nombre} · 90 min</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <p className="text-green-600 font-bold">$1.900</p>
+                      <div className="text-right">
+                        <p className="text-green-600 font-bold">$475 <span className="text-gray-400 font-normal text-xs">/ jugador</span></p>
+                        <p className="text-xs text-gray-400">$1.900 cancha</p>
+                      </div>
                       {yaUnido ? (
                         <button
                           onClick={e => { e.stopPropagation(); handleCancelar(partido) }}

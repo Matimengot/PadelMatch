@@ -136,7 +136,7 @@ export default function PerfilPage() {
     const path = `${userId}/avatar.${ext}`
 
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (error) { alert('Error subiendo la foto'); setSubiendoFoto(false); return }
+    if (error) { alert('Error: ' + error.message); setSubiendoFoto(false); return }
 
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
     // Forzar reload del cache agregando timestamp

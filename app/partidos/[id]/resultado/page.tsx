@@ -33,22 +33,34 @@ function promedio(nums: number[]): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length
 }
 
+// K-factor: más partidos jugados = menos volatilidad en el nivel
+function kFactor(partidosJugados: number): number {
+  if (partidosJugados < 5)  return 2.0  // Recién empezando — nivel muy incierto
+  if (partidosJugados < 20) return 1.5  // Aprendiendo
+  if (partidosJugados < 50) return 1.0  // Nivel establecido
+  return 0.7                             // Veterano — nivel muy confiable
+}
+
 function calcularNuevoNivel(
   nivelActual: number,
   resultado: 'victoria' | 'derrota',
   nivelPromedioOponentes: number,
   nivelPromedioEquipo: number,
-  tipo: string
+  tipo: string,
+  partidosJugados: number
 ): number {
   // Solo partidos competitivos afectan el nivel
   if (tipo !== 'competitivo') return nivelActual
 
+  const k = kFactor(partidosJugados)
+
   // Diferencia de nivel: positivo = oponentes más fuertes
   const diff = nivelPromedioOponentes - nivelPromedioEquipo
-  // Ajuste basado en fuerza del rival (máx ±0.1 extra)
-  const ajuste = Math.max(-0.1, Math.min(0.1, diff * 0.05))
+  // Ajuste basado en fuerza del rival (máx ±0.1 extra, también escalado por K)
+  const ajuste = Math.max(-0.1, Math.min(0.1, diff * 0.05)) * k
 
-  const delta = resultado === 'victoria' ? 0.1 + ajuste : -0.1 + ajuste
+  const base = resultado === 'victoria' ? 0.1 : -0.1
+  const delta = (base * k) + ajuste
 
   const nuevo = nivelActual + delta
   // Clamp entre 1.0 y 7.0, redondeado a 1 decimal
@@ -153,7 +165,7 @@ export default function ResultadoPartidoPage() {
         const nivelAnterior = j.profiles.nivel
         const nivelPromedioOponentes = j.equipo === 1 ? nivelEq2 : nivelEq1
         const nivelPromedioEquipo = j.equipo === 1 ? nivelEq1 : nivelEq2
-        const nivelNuevo = calcularNuevoNivel(nivelAnterior, resultado, nivelPromedioOponentes, nivelPromedioEquipo, partido.tipo)
+        const nivelNuevo = calcularNuevoNivel(nivelAnterior, resultado, nivelPromedioOponentes, nivelPromedioEquipo, partido.tipo, j.profiles.partidos_jugados ?? 0)
 
         return {
           partido_id: partido.id,

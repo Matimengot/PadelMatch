@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 interface Jugador {
   jugador_id: string
   equipo: number
-  profiles: { nombre: string }
+  profiles: { nombre: string; nivel: number; partidos_jugados: number }
 }
 
 interface Partido {
@@ -26,6 +26,33 @@ interface Partido {
 interface Set {
   eq1: string
   eq2: string
+}
+
+function promedio(nums: number[]): number {
+  if (nums.length === 0) return 0
+  return nums.reduce((a, b) => a + b, 0) / nums.length
+}
+
+function calcularNuevoNivel(
+  nivelActual: number,
+  resultado: 'victoria' | 'derrota',
+  nivelPromedioOponentes: number,
+  nivelPromedioEquipo: number,
+  tipo: string
+): number {
+  // Solo partidos competitivos afectan el nivel
+  if (tipo !== 'competitivo') return nivelActual
+
+  // Diferencia de nivel: positivo = oponentes más fuertes
+  const diff = nivelPromedioOponentes - nivelPromedioEquipo
+  // Ajuste basado en fuerza del rival (máx ±0.1 extra)
+  const ajuste = Math.max(-0.1, Math.min(0.1, diff * 0.05))
+
+  const delta = resultado === 'victoria' ? 0.1 + ajuste : -0.1 + ajuste
+
+  const nuevo = nivelActual + delta
+  // Clamp entre 1.0 y 7.0, redondeado a 1 decimal
+  return Math.round(Math.max(1.0, Math.min(7.0, nuevo)) * 10) / 10
 }
 
 export default function ResultadoPartidoPage() {
@@ -54,12 +81,11 @@ export default function ResultadoPartidoPage() {
 
       const { data: j } = await supabase
         .from('partido_jugadores')
-        .select('jugador_id, equipo, profiles(nombre)')
+        .select('jugador_id, equipo, profiles!partido_jugadores_jugador_id_fkey(nombre, nivel, partidos_jugados)')
         .eq('partido_id', id)
 
       if (p) setPartido(p)
       if (j) {
-        // Asignar equipos si no están asignados (primeros 2 = equipo 1, últimos 2 = equipo 2)
         const conEquipos = j.map((jug, i) => ({ ...jug, equipo: jug.equipo ?? (i < 2 ? 1 : 2) }))
         setJugadores(conEquipos)
         const yo = conEquipos.find(jug => jug.jugador_id === user.id)
@@ -67,7 +93,6 @@ export default function ResultadoPartidoPage() {
       }
 
       if (p?.sets) setYaConfirmado(true)
-
       setLoading(false)
     }
     load()
@@ -85,7 +110,7 @@ export default function ResultadoPartidoPage() {
     return sets.filter(s => s.eq1 !== '' && s.eq2 !== '').map(s => `${s.eq1}-${s.eq2}`).join(', ')
   }
 
-  function determinarGanador(setsStr: string, equipo: number): string {
+  function determinarGanador(setsStr: string, equipo: number): 'victoria' | 'derrota' {
     const partes = setsStr.split(',').map(s => s.trim())
     let gana1 = 0, gana2 = 0
     for (const p of partes) {
@@ -114,20 +139,43 @@ export default function ResultadoPartidoPage() {
       [confirmadoCampo]: true,
     }).eq('id', id)
 
-    // Si el otro equipo ya ingresó el mismo resultado → confirmar
+    // Si el otro equipo ya ingresó el mismo resultado → confirmar y actualizar niveles
     if (otroConfirmado && otroSets === setsStr) {
       await supabase.from('partidos').update({ sets: setsStr, estado: 'completado' }).eq('id', id)
 
-      // Crear resultados para cada jugador
-      const inserts = jugadores.map(j => ({
-        partido_id: partido.id,
-        jugador_id: j.jugador_id,
-        resultado: determinarGanador(setsStr, j.equipo),
-        nivel_anterior: 3.0,
-        nivel_nuevo: 3.0,
-        sets: setsStr,
-      }))
+      const equipo1 = jugadores.filter(j => j.equipo === 1)
+      const equipo2 = jugadores.filter(j => j.equipo === 2)
+      const nivelEq1 = promedio(equipo1.map(j => j.profiles.nivel))
+      const nivelEq2 = promedio(equipo2.map(j => j.profiles.nivel))
+
+      const inserts = jugadores.map(j => {
+        const resultado = determinarGanador(setsStr, j.equipo)
+        const nivelAnterior = j.profiles.nivel
+        const nivelPromedioOponentes = j.equipo === 1 ? nivelEq2 : nivelEq1
+        const nivelPromedioEquipo = j.equipo === 1 ? nivelEq1 : nivelEq2
+        const nivelNuevo = calcularNuevoNivel(nivelAnterior, resultado, nivelPromedioOponentes, nivelPromedioEquipo, partido.tipo)
+
+        return {
+          partido_id: partido.id,
+          jugador_id: j.jugador_id,
+          resultado,
+          nivel_anterior: nivelAnterior,
+          nivel_nuevo: nivelNuevo,
+          sets: setsStr,
+        }
+      })
+
       await supabase.from('resultados_partidos').insert(inserts)
+
+      // Actualizar nivel y partidos_jugados en profiles de cada jugador
+      await Promise.all(jugadores.map(j => {
+        const nivelNuevo = inserts.find(ins => ins.jugador_id === j.jugador_id)!.nivel_nuevo
+        return supabase.from('profiles').update({
+          nivel: nivelNuevo,
+          partidos_jugados: (j.profiles.partidos_jugados ?? 0) + 1,
+        }).eq('id', j.jugador_id)
+      }))
+
       setYaConfirmado(true)
     }
 
@@ -171,27 +219,45 @@ export default function ResultadoPartidoPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className={`p-3 rounded-xl ${miEquipo === 1 ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                  <p className="text-xs font-bold text-gray-500 mb-2">EQUIPO 1 {miEquipo === 1 && '(vos)'}</p>
+                  <p className="text-xs font-bold text-gray-500 mb-2">PAREJA A {miEquipo === 1 && '(vos)'}</p>
                   {equipo1.map(j => (
-                    <p key={j.jugador_id} className="text-sm font-medium text-gray-900">{j.profiles?.nombre}</p>
+                    <div key={j.jugador_id}>
+                      <p className="text-sm font-medium text-gray-900">{j.profiles?.nombre}</p>
+                      <p className="text-xs text-gray-400">Nivel {j.profiles?.nivel?.toFixed(1)}</p>
+                    </div>
                   ))}
                 </div>
                 <div className={`p-3 rounded-xl ${miEquipo === 2 ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                  <p className="text-xs font-bold text-gray-500 mb-2">EQUIPO 2 {miEquipo === 2 && '(vos)'}</p>
+                  <p className="text-xs font-bold text-gray-500 mb-2">PAREJA B {miEquipo === 2 && '(vos)'}</p>
                   {equipo2.map(j => (
-                    <p key={j.jugador_id} className="text-sm font-medium text-gray-900">{j.profiles?.nombre}</p>
+                    <div key={j.jugador_id}>
+                      <p className="text-sm font-medium text-gray-900">{j.profiles?.nombre}</p>
+                      <p className="text-xs text-gray-400">Nivel {j.profiles?.nivel?.toFixed(1)}</p>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
 
+            {/* Tipo de partido */}
+            {partido?.tipo === 'amistoso' && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-sm text-blue-600">
+                Partido amistoso — el resultado se registra pero <strong>no afecta el nivel</strong>
+              </div>
+            )}
+            {partido?.tipo === 'competitivo' && (
+              <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 mb-4 text-sm text-orange-600">
+                Partido competitivo — el resultado <strong>actualiza el nivel de todos los jugadores</strong>
+              </div>
+            )}
+
             {/* Ingreso de sets */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Marcador</h2>
               <div className="grid grid-cols-3 gap-2 mb-3 text-xs text-gray-400 font-medium text-center">
-                <span>Equipo 1</span>
+                <span>Pareja A</span>
                 <span>Set</span>
-                <span>Equipo 2</span>
+                <span>Pareja B</span>
               </div>
               {sets.map((s, i) => (
                 <div key={i} className="grid grid-cols-3 gap-2 mb-3 items-center">
@@ -219,12 +285,12 @@ export default function ResultadoPartidoPage() {
 
             {partido?.sets_propuesto_equipo1 && miEquipo === 2 && (
               <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-4 text-sm text-orange-700">
-                El equipo 1 ingresó: <strong>{partido.sets_propuesto_equipo1}</strong>. Si es correcto, ingresá el mismo marcador para confirmar.
+                La Pareja A ingresó: <strong>{partido.sets_propuesto_equipo1}</strong>. Si es correcto, ingresá el mismo marcador para confirmar.
               </div>
             )}
             {partido?.sets_propuesto_equipo2 && miEquipo === 1 && (
               <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-4 text-sm text-orange-700">
-                El equipo 2 ingresó: <strong>{partido.sets_propuesto_equipo2}</strong>. Si es correcto, ingresá el mismo marcador para confirmar.
+                La Pareja B ingresó: <strong>{partido.sets_propuesto_equipo2}</strong>. Si es correcto, ingresá el mismo marcador para confirmar.
               </div>
             )}
 

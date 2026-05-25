@@ -105,6 +105,7 @@ export default function OnboardingPage() {
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       nombre: user.user_metadata?.nombre ?? 'Jugador',
+      email: user.email,
       nivel,
       onboarding_completado: true,
     })

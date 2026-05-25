@@ -15,6 +15,7 @@ interface Profile {
 export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [esAdminClub, setEsAdminClub] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,11 +23,20 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('nombre, nivel, partidos_jugados, onboarding_completado')
-        .eq('id', user.id)
-        .single()
+      const [{ data }, { data: club }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('nombre, nivel, partidos_jugados, onboarding_completado')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('clubes')
+          .select('id')
+          .eq('admin_id', user.id)
+          .maybeSingle(),
+      ])
+
+      setEsAdminClub(!!club)
 
       if (data && !data.onboarding_completado) {
         router.push('/onboarding')
@@ -106,6 +116,22 @@ export default function DashboardPage() {
             <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:bg-yellow-200 transition-colors">🏅</div>
             <h3 className="text-lg font-bold text-gray-900">Ranking</h3>
             <p className="text-gray-400 text-sm mt-1">Los mejores jugadores de PadelMatch</p>
+          </a>
+          <a
+            href={esAdminClub ? '/club' : '/club/registro'}
+            className="bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-md hover:border-green-200 transition-all group md:col-span-2"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-green-200 transition-colors flex-shrink-0">🏟️</div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {esAdminClub ? 'Panel del club' : '¿Tenés un club?'}
+                </h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  {esAdminClub ? 'Gestioná reservas, canchas y estadísticas' : 'Registrá tu club y empezá a recibir reservas'}
+                </p>
+              </div>
+            </div>
           </a>
         </div>
       </main>

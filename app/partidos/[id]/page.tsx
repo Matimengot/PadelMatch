@@ -140,6 +140,12 @@ export default function PartidoDetailPage() {
     setPartido(prev => prev ? { ...prev, jugadores_confirmados: nuevosJugadores } : prev)
     await cargarJugadores(partido.id)
     setUniendose(null)
+
+    fetch('/api/notificaciones/unirse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partido_id: partido.id, nuevo_jugador_id: userId }),
+    }).catch(() => {})
   }
 
   async function handleCancelar() {

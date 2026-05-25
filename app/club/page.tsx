@@ -45,7 +45,7 @@ export default function ClubDashboardPage() {
         .eq('admin_id', user.id)
         .single()
 
-      if (!clubData) { router.push('/dashboard'); return }
+      if (!clubData) { router.push('/club/registro'); return }
       setClub(clubData)
 
       const hoy = new Date().toISOString().split('T')[0]

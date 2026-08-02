@@ -15,6 +15,7 @@ interface Reserva {
   fecha: string
   hora_inicio: string
   hora_fin: string
+  pagada: boolean
   canchas: { nombre: string; precio_hora: number }
   profiles: { nombre: string }
 }
@@ -67,7 +68,7 @@ export default function ClubDashboardPage() {
       // Reservas del día seleccionado
       const { data: resHoy } = await supabase
         .from('reservas')
-        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre, precio_hora), profiles(nombre)')
+        .select('id, fecha, hora_inicio, hora_fin, pagada, canchas(nombre, precio_hora), profiles(nombre)')
         .eq('fecha', diaSeleccionado)
         .in('cancha_id', await getCanchaIds(clubData.id))
         .order('hora_inicio', { ascending: true })
@@ -79,7 +80,7 @@ export default function ClubDashboardPage() {
       en7dias.setDate(en7dias.getDate() + 7)
       const { data: resProximas } = await supabase
         .from('reservas')
-        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre, precio_hora), profiles(nombre)')
+        .select('id, fecha, hora_inicio, hora_fin, pagada, canchas(nombre, precio_hora), profiles(nombre)')
         .gt('fecha', hoy)
         .lte('fecha', en7dias.toISOString().split('T')[0])
         .in('cancha_id', await getCanchaIds(clubData.id))
@@ -100,11 +101,12 @@ export default function ClubDashboardPage() {
 
       const totalCanchas = canchasData?.length ?? 0
       const ingresosHoy = (resHoy ?? []).reduce((sum, r) => sum + (r.canchas?.precio_hora ?? 0), 0)
+      const pendienteHoy = (resHoy ?? []).filter(r => !r.pagada).reduce((sum, r) => sum + (r.canchas?.precio_hora ?? 0), 0)
 
       setStats([
         { label: 'Reservas hoy', value: resHoy?.length ?? 0, sub: 'turnos confirmados' },
-        { label: 'Canchas', value: totalCanchas, sub: 'en total' },
-        { label: 'Ingresos hoy', value: `$${ingresosHoy.toLocaleString()}`, sub: 'estimado' },
+        { label: 'Ingresos hoy', value: `$${ingresosHoy.toLocaleString()}`, sub: totalCanchas + ' cancha' + (totalCanchas === 1 ? '' : 's') },
+        { label: 'Pendiente de cobro', value: `$${pendienteHoy.toLocaleString()}`, sub: 'hoy' },
         { label: 'Próximos 7 días', value: resProximas?.length ?? 0, sub: 'reservas' },
       ])
 
@@ -196,6 +198,22 @@ export default function ClubDashboardPage() {
     await recargarCanchas()
   }
 
+  async function togglePagada(id: string, actual: boolean) {
+    const { error } = await supabase
+      .from('reservas')
+      .update({ pagada: !actual })
+      .eq('id', id)
+
+    if (error) return
+
+    const nuevasHoy = reservasHoy.map(r => r.id === id ? { ...r, pagada: !actual } : r)
+    setReservasHoy(nuevasHoy)
+    setReservasProximas(prev => prev.map(r => r.id === id ? { ...r, pagada: !actual } : r))
+
+    const pendienteHoy = nuevasHoy.filter(r => !r.pagada).reduce((sum, r) => sum + (r.canchas?.precio_hora ?? 0), 0)
+    setStats(prev => prev.map(s => s.label === 'Pendiente de cobro' ? { ...s, value: `$${pendienteHoy.toLocaleString()}` } : s))
+  }
+
   function formatFecha(fecha: string) {
     const d = new Date(fecha + 'T00:00:00')
     return d.toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -271,9 +289,16 @@ export default function ClubDashboardPage() {
                       <p className="text-sm text-gray-400">{r.canchas?.nombre} · hasta {r.hora_fin.slice(0, 5)}</p>
                     </div>
                   </div>
-                  <span className="text-xs bg-green-50 text-green-700 font-semibold px-3 py-1 rounded-full">
-                    Confirmada
-                  </span>
+                  <button
+                    onClick={() => togglePagada(r.id, r.pagada)}
+                    className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${
+                      r.pagada
+                        ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                        : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                    }`}
+                  >
+                    {r.pagada ? 'Pagada' : 'Pendiente de cobro'}
+                  </button>
                 </div>
               ))}
             </div>
@@ -398,9 +423,16 @@ export default function ClubDashboardPage() {
                       <p className="text-sm text-gray-400">{r.canchas?.nombre} · {r.hora_inicio.slice(0, 5)} – {r.hora_fin.slice(0, 5)}</p>
                     </div>
                   </div>
-                  <span className="text-xs bg-green-50 text-green-700 font-semibold px-3 py-1 rounded-full">
-                    Confirmada
-                  </span>
+                  <button
+                    onClick={() => togglePagada(r.id, r.pagada)}
+                    className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${
+                      r.pagada
+                        ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                        : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                    }`}
+                  >
+                    {r.pagada ? 'Pagada' : 'Pendiente de cobro'}
+                  </button>
                 </div>
               ))}
             </div>

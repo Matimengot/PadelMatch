@@ -15,7 +15,7 @@ interface Reserva {
   fecha: string
   hora_inicio: string
   hora_fin: string
-  canchas: { nombre: string }
+  canchas: { nombre: string; precio_hora: number }
   profiles: { nombre: string }
 }
 
@@ -23,6 +23,12 @@ interface Stat {
   label: string
   value: string | number
   sub: string
+}
+
+interface Cancha {
+  id: string
+  nombre: string
+  precio_hora: number
 }
 
 export default function ClubDashboardPage() {
@@ -33,6 +39,14 @@ export default function ClubDashboardPage() {
   const [stats, setStats] = useState<Stat[]>([])
   const [loading, setLoading] = useState(true)
   const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().toISOString().split('T')[0])
+  const [canchas, setCanchas] = useState<Cancha[]>([])
+  const [nuevaCanchaNombre, setNuevaCanchaNombre] = useState('')
+  const [nuevaCanchaPrecio, setNuevaCanchaPrecio] = useState('')
+  const [agregandoCancha, setAgregandoCancha] = useState(false)
+  const [errorCancha, setErrorCancha] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editPrecio, setEditPrecio] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -53,7 +67,7 @@ export default function ClubDashboardPage() {
       // Reservas del día seleccionado
       const { data: resHoy } = await supabase
         .from('reservas')
-        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre), profiles(nombre)')
+        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre, precio_hora), profiles(nombre)')
         .eq('fecha', diaSeleccionado)
         .in('cancha_id', await getCanchaIds(clubData.id))
         .order('hora_inicio', { ascending: true })
@@ -65,7 +79,7 @@ export default function ClubDashboardPage() {
       en7dias.setDate(en7dias.getDate() + 7)
       const { data: resProximas } = await supabase
         .from('reservas')
-        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre), profiles(nombre)')
+        .select('id, fecha, hora_inicio, hora_fin, canchas(nombre, precio_hora), profiles(nombre)')
         .gt('fecha', hoy)
         .lte('fecha', en7dias.toISOString().split('T')[0])
         .in('cancha_id', await getCanchaIds(clubData.id))
@@ -76,13 +90,16 @@ export default function ClubDashboardPage() {
       setReservasProximas(resProximas ?? [])
 
       // Stats
-      const { data: canchas } = await supabase
+      const { data: canchasData } = await supabase
         .from('canchas')
-        .select('id, precio_hora')
+        .select('id, nombre, precio_hora')
         .eq('club_id', clubData.id)
+        .order('nombre', { ascending: true })
 
-      const totalCanchas = canchas?.length ?? 0
-      const ingresosHoy = (resHoy?.length ?? 0) * (canchas?.[0]?.precio_hora ?? 0)
+      setCanchas(canchasData ?? [])
+
+      const totalCanchas = canchasData?.length ?? 0
+      const ingresosHoy = (resHoy ?? []).reduce((sum, r) => sum + (r.canchas?.precio_hora ?? 0), 0)
 
       setStats([
         { label: 'Reservas hoy', value: resHoy?.length ?? 0, sub: 'turnos confirmados' },
@@ -102,6 +119,81 @@ export default function ClubDashboardPage() {
       .select('id')
       .eq('club_id', clubId)
     return (data ?? []).map(c => c.id)
+  }
+
+  async function recargarCanchas() {
+    if (!club) return
+    const { data } = await supabase
+      .from('canchas')
+      .select('id, nombre, precio_hora')
+      .eq('club_id', club.id)
+      .order('nombre', { ascending: true })
+    setCanchas(data ?? [])
+  }
+
+  async function agregarCancha(e: React.FormEvent) {
+    e.preventDefault()
+    if (!club) return
+    setErrorCancha('')
+    setAgregandoCancha(true)
+
+    const { error } = await supabase.from('canchas').insert({
+      club_id: club.id,
+      nombre: nuevaCanchaNombre.trim(),
+      precio_hora: parseFloat(nuevaCanchaPrecio) || 0,
+    })
+
+    if (error) {
+      setErrorCancha(error.message)
+    } else {
+      setNuevaCanchaNombre('')
+      setNuevaCanchaPrecio('')
+      await recargarCanchas()
+    }
+    setAgregandoCancha(false)
+  }
+
+  function empezarEdicion(cancha: Cancha) {
+    setEditandoId(cancha.id)
+    setEditNombre(cancha.nombre)
+    setEditPrecio(String(cancha.precio_hora))
+  }
+
+  async function guardarEdicion(id: string) {
+    setErrorCancha('')
+    const { error } = await supabase
+      .from('canchas')
+      .update({ nombre: editNombre.trim(), precio_hora: parseFloat(editPrecio) || 0 })
+      .eq('id', id)
+
+    if (error) {
+      setErrorCancha(error.message)
+      return
+    }
+    setEditandoId(null)
+    await recargarCanchas()
+  }
+
+  async function eliminarCancha(id: string) {
+    setErrorCancha('')
+    const hoy = new Date().toISOString().split('T')[0]
+    const { count } = await supabase
+      .from('reservas')
+      .select('id', { count: 'exact', head: true })
+      .eq('cancha_id', id)
+      .gte('fecha', hoy)
+
+    if (count && count > 0) {
+      setErrorCancha('No se puede eliminar: tiene reservas futuras. Cancelalas primero.')
+      return
+    }
+
+    const { error } = await supabase.from('canchas').delete().eq('id', id)
+    if (error) {
+      setErrorCancha(error.message)
+      return
+    }
+    await recargarCanchas()
   }
 
   function formatFecha(fecha: string) {
@@ -186,6 +278,105 @@ export default function ClubDashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Gestión de canchas */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Canchas</h2>
+
+          {errorCancha && (
+            <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-red-600 text-sm mb-4">
+              {errorCancha}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 mb-6">
+            {canchas.map(c => (
+              <div key={c.id} className="flex items-center justify-between gap-4 border border-gray-100 rounded-xl px-4 py-3">
+                {editandoId === c.id ? (
+                  <>
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="text"
+                        value={editNombre}
+                        onChange={e => setEditNombre(e.target.value)}
+                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editPrecio}
+                          onChange={e => setEditPrecio(e.target.value)}
+                          className="border border-gray-200 rounded-lg pl-6 pr-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => guardarEdicion(c.id)} className="text-green-600 hover:text-green-700 text-sm font-semibold">
+                        Guardar
+                      </button>
+                      <button onClick={() => setEditandoId(null)} className="text-gray-400 hover:text-gray-600 text-sm">
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="font-semibold text-gray-900">{c.nombre}</p>
+                      <p className="text-sm text-gray-400">${c.precio_hora} / 90 min</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <button onClick={() => empezarEdicion(c)} className="text-gray-400 hover:text-gray-600 text-sm font-medium">
+                        Editar
+                      </button>
+                      <button onClick={() => eliminarCancha(c.id)} className="text-red-400 hover:text-red-600 text-sm font-medium">
+                        Eliminar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={agregarCancha} className="flex items-end gap-3 border-t border-gray-100 pt-6">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Nueva cancha</label>
+              <input
+                type="text"
+                value={nuevaCanchaNombre}
+                onChange={e => setNuevaCanchaNombre(e.target.value)}
+                placeholder="Ej: Cancha 3"
+                required
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Precio / hora</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={nuevaCanchaPrecio}
+                  onChange={e => setNuevaCanchaPrecio(e.target.value)}
+                  placeholder="0"
+                  required
+                  className="border border-gray-200 rounded-lg pl-6 pr-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={agregandoCancha}
+              className="bg-green-600 text-white font-semibold px-5 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {agregandoCancha ? 'Agregando...' : 'Agregar'}
+            </button>
+          </form>
         </div>
 
         {/* Próximas reservas */}

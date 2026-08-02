@@ -8,7 +8,7 @@ interface Cancha {
   id: string
   nombre: string
   precio_hora: number
-  clubes: { nombre: string; direccion: string }
+  clubes: { nombre: string; direccion: string } | { nombre: string; direccion: string }[]
 }
 
 interface Reserva {
